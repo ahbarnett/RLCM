@@ -1,12 +1,16 @@
 #!/bin/bash
 
+# ahb's hacked version to get build on ubuntu 21.04 linux / GCC.  March 2022.
+# Note: since . is assumed in path, need the dangerous:
+# export PATH=$PATH:.
+
 # The user must edit this part ------------------------------------------------
 
 # Identify the operating system. Either LINUX or MAC.
-export SYS=MAC
+export SYS=LINUX
 
 # Set C++ compiler. Examples: g++ (Linux), g++-8 (Mac).
-export CXX=g++-8
+export CXX=g++
 
 # Set the use of OPENMP. The C++ compiler typically comes with OPENMP
 # support.
@@ -18,8 +22,11 @@ export USE_OPENMP=1
 
 # Set the use of OPENBLAS. If USE_OPENBLAS is zero, the other related
 # variables are ignored.
-export USE_OPENBLAS=0
-export OPENBLAS_LIBS="-lopenblaso"
+export USE_OPENBLAS=1
+#export OPENBLAS_LIBS="-lopenblaso"
+export OPENBLAS_LIBS="-lopenblas -lgomp"
+# Note 3/18/22: ahb had to symlink /usr/include/x86_64-linux-gnu/openblas/cblas.h to /usr/include/x86_64-linux-gnu/cblas.h to get it to find #include <openblas/cblas.h>  ..ugh
+# also adding OMP to libs as above
 export OPENBLAS_INCL_PATH=
 export OPENBLAS_LIB_PATH=
 
@@ -38,7 +45,7 @@ export MKL_CXXFLAGS="-openmp -mkl"
 export MKL_LIBS="-openmp -mkl"
 
 # Set the use of ACCELERATE.
-export USE_ACCELERATE=1
+export USE_ACCELERATE=0
 
 # Set the use of 64-bit integers. ALWAYS SET IT TO ZERO.
 #
@@ -60,7 +67,7 @@ export USE_MATERN=1
 
 # If the Matern kernel is used, one must also provide the Fortran
 # compiler. Examples: gfortran (Linux), gfortran-8 (Mac).
-export FC=gfortran-8
+export FC=gfortran
 
 # The user stops editing here -------------------------------------------------
 

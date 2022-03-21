@@ -1,7 +1,7 @@
 DIRS = KRR KRR_binary GP
 
 all:
-	generate_KRR_binary.sh
+	./generate_KRR_binary.sh
 	for d in ${DIRS}; do ( cd $$d; make ); done
 
 clean:

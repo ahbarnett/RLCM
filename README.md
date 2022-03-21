@@ -34,6 +34,7 @@ This library has been tested successfully under
 
 - macOS High Sierra Version 10.13.6, Darwin Kernel Version 17.7.0, x86_64
 - Red Hat Enterprise Linux 6.9, Kernel Version 2.6.32-696, x86_64
+- AHB 3/21/22 got going: Ubuntu (really Pop!OS) 21.04, GCC+openBLAS, x86_64
 
 ## Dependencies
 

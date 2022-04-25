@@ -148,6 +148,9 @@ int main(int argc, char **argv) {
   
   // Training (doesn't seem to use y train vals!    factorizes K+lamda*I only
   // (see src/KRR/KRR_Standard.hpp )
+  // Note that the kernel k(x,y) when x==y gives var0+lambda (adds the nugget)
+  // see src/Kernels/IsotropicGaussian.tpp
+  // ugh
   START_CLOCK;
   double MemEst = mKRR_Standard.Train(Xtrain, mKernel, lambda);
   END_CLOCK;
@@ -168,7 +171,7 @@ int main(int argc, char **argv) {
   py = ypred.GetPointer();
   fp = fopen(FilePred, "wp");
   for (INTEGER i=0;i<Ntest;++i) {
-    // if (i<2) printf("ypred[%d] = %g\n",i,py[i]);
+    // if (i<2) printf("ypred[%d] = %g\n",i,py[i]);      // checked ok
     fwrite(py + i,1,sizeof(double),fp);  // write a val
   }
   fclose(fp);

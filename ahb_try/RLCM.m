@@ -105,7 +105,7 @@ for dim = 1:3   % ..........
   [y, ~, info] = RLCM(x, meas, sigma^2, ker, [], opts);
   % run O(n^3) naive gp regression
   [ytrue, ytrg, ~] = naive_gp(x, meas, sigma^2, ker, [], opts);
-  fprintf('first 10 entries of y.mean vec and ytrue.mean vec...');
+  fprintf('first 10 entries of y.mean vec and ytrue.mean vec...\n');
   disp([y.mean(1:10) ytrue.mean(1:10)])
   fprintf('CPU time (s):\t%.3g\n',info.cpu_time.total);
   fprintf('y.mean: rms err vs meas data   %.3g\t(should be about sigmadata=%.3g)\n', rms(y.mean-meas),sigmadata)

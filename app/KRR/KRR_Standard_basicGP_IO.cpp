@@ -146,20 +146,18 @@ int main(int argc, char **argv) {
   // var0 = k(0) the prior var
   KernelType mKernel(var0, sigma);
   
-  // Training (doesn't seem to use y train vals!    factorizes K+lamda*I only
-  // (see src/KRR/KRR_Standard.hpp )
-  // Note that the kernel k(x,y) when x==y gives var0+lambda (adds the nugget)
+  // Training (factorizes K+lamda*I only - see src/KRR/KRR_Standard.hpp)
+  // Note that the kernel k(x,y) when x==y gives var0+lambda (adds "nugget")
   // see src/Kernels/IsotropicGaussian.tpp
-  // ugh
   START_CLOCK;
   double MemEst = mKRR_Standard.Train(Xtrain, mKernel, lambda);
   END_CLOCK;
   double TimeTrain = ELAPSED_TIME;
-  // bad should not really clobber stdout...
+  // we are bad since we should not really clobber stdout like this...
   printf("\tKRR_Standard.Train: (Ntrain=%d, dim=%d) param = %g %g, time = %g, mem_per_pt = %g\n", Ntrain, d, sigma, lambda, TimeTrain, MemEst);
   
 
-  // do predictions?  There's no doc for KRR_Standard.Test sadly....
+  // do predictions? I guess.  There's no doc for KRR_Standard.Test....
   START_CLOCK;
   mKRR_Standard.Test(Xtrain, Xtest, ytrain, mKernel, ypred);
   END_CLOCK;

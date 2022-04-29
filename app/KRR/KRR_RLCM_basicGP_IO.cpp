@@ -1,12 +1,18 @@
-// This program performs kernel ridge regression by using the Standard
+// This program performs kernel ridge regression by using the RLCM
 // method. The actual machine learning task can be either regression,
 // binary classification, or multiclass classification.
 //
-// For large data sets, this program may not be able to handle the
-// test data all at once. Hence, a parameter Budget is used to split
-// the test data into batches, each handled at a time. The number of
-// test data in one batch is approximately Budget/N, where N is the
-// number of training data.
+// The RLCM method requires a parameter Rank, which is approximately
+// equal to N0, the leaf size in a hierarchical partitioning of the
+// training data. Meanwhile, for large data sets, this program may not
+// be able to handle the test data all at once. Hence, a parameter
+// Budget is used to split the test data into batches, each handled at
+// a time. The number of test data in one batch is approximately
+// Budget/N0.
+//
+// The RLCM method also offers the option Par, which specifies the
+// method for partitioning the data set when building kernel matrix.
+// RAND is much more efficient than PCA.
 //
 // The current implementation supports the following kernels:
 // isotropic Gaussian, isotropic Laplace, product Laplace, and inverse
@@ -35,7 +41,7 @@
 //
 // Usage:
 //
-//   KRR_Standard_basicGP_IO_<kerneltype>_<pointtype>.ex NumThreads Ntrain FileTrain Ntest FileTest FilePred d sigma var lambda
+//   KRR_RLCM_basicGP_IO_<kerneltype>_<pointtype>.ex NumThreads Ntrain FileTrain Ntest FileTest FilePred d sigma var lambda seed rank par diagcorrent refinement
 //
 //      note (ahb): only does GP regression, single set of kernel params
 //
@@ -50,10 +56,19 @@
 //                testing (just coords of points xtrg).
 //   FilePred:   Output file for pred means at test pts (raw doubles, binary)
 //   d:           Dimension of the data
+// [three kernel params:]
 //   sigma:   param sigma (lengthscale of kernel, usually called \ell).
 //   var :  param k(0) prior variance
 //   lambba:  param lambda = nugget I think ?  Ie what GPs call sigma^2 ?
 //               inferred by reading test/Test_IsotropicGaussian.cpp
+// [five RLCM method params:]
+//   Seed:        If >= 0, will use this value as the seed for RNG;
+//                otherwise, use the current time to seed the RNG.
+//   Rank:        Rank
+//   Par:         Partitioning method. One of RAND, PCA
+//   DiagCorrect: Diagonal correction for CMatrix construction, e.g., 1e-8
+//   Refinement:  Refine the linear solves? Either 0 or 1.
+
 
 #include "KRR_Common.hpp"
 
@@ -63,7 +78,7 @@
 int main(int argc, char **argv) {
 
   //---------- Parameters from command line --------------------
-  if (argc!=11) {
+  if (argc!=16) {
     printf("wrong number of cmd args!\n");
     exit(1);
   }
@@ -75,10 +90,36 @@ int main(int argc, char **argv) {
   char *FileTest = argv[idx++];                     // Testing data
   char *FilePred = argv[idx++];                     // pred output file
   INTEGER d = String2Integer(argv[idx++]);          // Data dimension
+  // kernel & nugget pars...
   double sigma = atof(argv[idx++]);                // ell
   double var0 = atof(argv[idx++]);                   // aka s, var k(0)
   double lambda = atof(argv[idx++]);              // aka sigma^2 nugget
+  // RLCM pars....
+  INTEGER sSeed = String2Integer(argv[idx++]);      // Seed for randomization
+  unsigned Seed;
+  if (sSeed < 0) {
+    Seed = (unsigned)time(NULL);
+  }
+  else {
+    Seed = (unsigned)sSeed;
+  }
+  INTEGER Rank = String2Integer(argv[idx++]);       // Rank
+  char *ParString = argv[idx++];                    // Partitioning method
+  PartMethod Par;
+  if (strcmp(ParString, "RAND") == 0) {
+    Par = RAND;
+  }
+  else if (strcmp(ParString, "PCA") == 0) {
+    Par = PCA;
+  }
+  else {
+    printf("KRR_RLCM. Error: Unknown partitioning method!\n");
+    return 0;
+  }
+  double DiagCorrect = atof(argv[idx++]);           // DiagCorrect
+  bool Refinement = atoi(argv[idx++]) ? true : false; // Refinement
 
+  
   //---------- Read in data --------------------
 
   PointArrayFormat Xtrain; // Training points
@@ -93,10 +134,10 @@ int main(int argc, char **argv) {
   INTEGER count;
   FILE *fp=NULL;
   fp = fopen(FileTrain, "rb");
-  for (INTEGER i=0;i<d;++i) {
+  for (int i=0;i<d;++i) {
     count = (INTEGER)fread(px + i*Ntrain,sizeof(double),Ntrain,fp);  // read a coord (all pts)
     if (count!=Ntrain) {
-      fprintf(stderr,"error reading train coordinates i=%d!\n",i);
+      fprintf(stderr,"error reading train coordinate i=%d!\n",i);
       return 1;
     }
   }
@@ -110,7 +151,7 @@ int main(int argc, char **argv) {
   Xtest.Init(Ntest,d);
   px = Xtest.GetPointer();
   fp = fopen(FileTest, "rb");
-  for (INTEGER i=0;i<d;++i) {
+  for (int i=0;i<d;++i) {
     count = (INTEGER)fread(px + i*Ntest,sizeof(double),Ntest,fp);  // read a coord (all points)
     if (count!=Ntest) {
       fprintf(stderr,"error reading test coordinate i=%d!\n",i);
@@ -130,34 +171,49 @@ int main(int argc, char **argv) {
 #else
   NumThreads = 1; // To avoid compiler warining of unused variable
 #endif
+  printf("\tStarting RLCM, NumThreads=%d ...\n",NumThreads);
+  //  *** problem, even when NumThreads=1, observe all threads used :(
+  // Also, NumThreads = 16, say, causes terrible slow-down to a halt :(
 
+  
   //---------- Main computation --------------------
 
   PREPARE_CLOCK(true);
 
-  KRR_Standard<KernelType, PointFormat, PointArrayFormat> mKRR_Standard;
+  KRR_RLCM<KernelType, PointFormat, PointArrayFormat> mKRR_RLCM;
+  INTEGER *Perm = NULL, *iPerm = NULL;
+  INTEGER N = Xtrain.GetN();
+  New_1D_Array<INTEGER, INTEGER>(&Perm, N);
+  New_1D_Array<INTEGER, INTEGER>(&iPerm, N);
 
-  // var0 = k(0) the prior var
+  // Pre-training
+  START_CLOCK;
+  double MemEst;
+  MemEst = mKRR_RLCM.PreTrain(Xtrain, ytrain, Perm, iPerm, Rank, DiagCorrect,
+                                Refinement, Seed, Par);
+  END_CLOCK;
+  double TimePreTrain = ELAPSED_TIME;
+  printf("\tKRR_RLCM: pretrain time = %g, MemEst=%g\n", TimePreTrain, MemEst); fflush(stdout);
+
+  // set up the kernel: var0 = k(0) = the prior var. sigma = lengthscale
   KernelType mKernel(var0, sigma);
   
-  // Training (factorizes K+lamda*I only - see src/KRR/KRR_Standard.hpp)
+  // Training
   // Note that the kernel k(x,y) when x==y gives var0+lambda (adds "nugget")
   // see src/Kernels/IsotropicGaussian.tpp
   START_CLOCK;
-  double MemEst = mKRR_Standard.Train(Xtrain, mKernel, lambda);
+  mKRR_RLCM.Train(Xtrain, mKernel, lambda);
   END_CLOCK;
   double TimeTrain = ELAPSED_TIME;
   // we are bad since we should not really clobber stdout like this...
-  printf("\tKRR_Standard.Train: (Ntrain=%d, dim=%d) param = %g %g, time = %g, mem_per_pt = %g\n", Ntrain, d, sigma, lambda, TimeTrain, MemEst);
+  printf("\tKRR_RLCM.Train: (Ntrain=%d, dim=%d) param = %g %g, time = %g\n", Ntrain, d, sigma, lambda, TimeTrain);
   
-
-  // do predictions? I guess.  There's no doc for KRR_Standard.Test....
+  // do predictions? (not "tests") I guess.  There's no doc for KRR_*.Test....
   START_CLOCK;
-  mKRR_Standard.Test(Xtrain, Xtest, ytrain, mKernel, ypred);
+  mKRR_RLCM.Test(Xtrain, Xtest, ytrain, mKernel, ypred);
   END_CLOCK;
   double TimeTest = ELAPSED_TIME;
-  printf("\tKRR_Standard.Test: (Ntest=%d) time = %g\n", Ntest, TimeTest);
-
+  printf("\tKRR_RLCM.Test: (Ntest=%d) time = %g\n", Ntest, TimeTest);
   
   //----------- Write out  predicted mean y values at test pts ......
   py = ypred.GetPointer();
@@ -170,6 +226,7 @@ int main(int argc, char **argv) {
   fclose(fp);
   
   //---------- Clean up --------------------      no free of Xtrain etc?
+  Delete_1D_Array<INTEGER>(&Perm);
+  Delete_1D_Array<INTEGER>(&iPerm);
   return 0;
-
 }

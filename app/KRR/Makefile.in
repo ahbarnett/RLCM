@@ -7,8 +7,9 @@ OBJS       = KRR_Common.o
 LIBS       = -lcmatrix -lm -lstdc++
 LIB_PATHS  = -L${CMATRIX_DIR}/lib
 INCL_PATHS = -I${CMATRIX_DIR}/include
-# ahb added new ones at start here...
+# ahb added two new ones at start here...
 EXES       = KRR_Standard_basicGP_IO_IsotropicGaussian_DPoint.ex \
+             KRR_RLCM_basicGP_IO_IsotropicGaussian_DPoint.ex \
              KRR_Standard_IsotropicGaussian_DPoint.ex \
              KRR_Standard_IsotropicGaussian_SPoint.ex \
              KRR_Standard_IsotropicLaplace_DPoint.ex \
@@ -103,11 +104,16 @@ endif
 
 all: ${EXES}
 
+# ahb new ones...
+KRR_Standard_basicGP_IO_IsotropicGaussian_DPoint.ex: ${OBJS} KRR_Standard_basicGP_IO.cpp
+	${LINKER} KRR_Standard_basicGP_IO.cpp -o $@ -D KernelType=IsotropicGaussian -D PointFormat=DPoint -D PointArrayFormat=DPointArray ${CXXFLAGS} ${INCL_PATHS} ${OBJS} ${LIB_PATHS} ${LIBS}
+
+KRR_RLCM_basicGP_IO_IsotropicGaussian_DPoint.ex: ${OBJS} KRR_RLCM_basicGP_IO.cpp
+	${LINKER} KRR_RLCM_basicGP_IO.cpp -o $@ -D KernelType=IsotropicGaussian -D PointFormat=DPoint -D PointArrayFormat=DPointArray ${CXXFLAGS} ${INCL_PATHS} ${OBJS} ${LIB_PATHS} ${LIBS}
+
+# original jie chen ones...
 KRR_Standard_IsotropicGaussian_DPoint.ex: ${OBJS}
 	${LINKER} KRR_Standard.cpp -o $@ -D KernelType=IsotropicGaussian -D PointFormat=DPoint -D PointArrayFormat=DPointArray ${CXXFLAGS} ${INCL_PATHS} ${OBJS} ${LIB_PATHS} ${LIBS}
-
-KRR_Standard_basicGP_IO_IsotropicGaussian_DPoint.ex: ${OBJS}
-	${LINKER} KRR_Standard_basicGP_IO.cpp -o $@ -D KernelType=IsotropicGaussian -D PointFormat=DPoint -D PointArrayFormat=DPointArray ${CXXFLAGS} ${INCL_PATHS} ${OBJS} ${LIB_PATHS} ${LIBS}
 
 KRR_Standard_IsotropicGaussian_SPoint.ex: ${OBJS}
 	${LINKER} KRR_Standard.cpp -o $@ -D KernelType=IsotropicGaussian -D PointFormat=SPoint -D PointArrayFormat=SPointArray ${CXXFLAGS} ${INCL_PATHS} ${OBJS} ${LIB_PATHS} ${LIBS}

@@ -101,27 +101,23 @@ int main(int argc, char **argv) {
   ytrain.Init(Ntrain);
   double *px = Xtrain.GetPointer();     // not sure how template to single etc
   double *py = ytrain.GetPointer();
+  INTEGER count;
   FILE *fp=NULL;
   fp = fopen(FileTrain, "rb");
-  for (INTEGER i=0;i<Ntrain;++i) {
-    fread(px + i*d,d,sizeof(double),fp);  // read a point (all coords)
-    fread(py + i,1,sizeof(double),fp);   // read corresp y val
-    if (0 && i==0) {
-      for (INTEGER j=0;j<d;++j) printf("%g ",px[i*d + j]);
-      printf(" y=%g\n",py[i]);
-    }
+  for (INTEGER i=0;i<d;++i) {
+    count = (INTEGER)fread(px + i*Ntrain,sizeof(double),Ntrain,fp);  // read a coord (all pts)
+    if (count!=Ntrain) fprintf(stderr,"error reading train coordinate i=%d!\n",i);
   }
+  count = (INTEGER)fread(py,sizeof(double),Ntrain,fp);   // corresp y vals
+  if (count!=Ntrain) fprintf(stderr,"error reading train y vals!\n");
   fclose(fp);
   
   Xtest.Init(Ntest,d);
   px = Xtest.GetPointer();
   fp = fopen(FileTest, "rb");
-  for (INTEGER i=0;i<Ntest;++i) {
-    fread(px + i*d,d,sizeof(double),fp);  // read a point (all coords)
-    if (0 && i<2) {
-      for (INTEGER j=0;j<d;++j) printf("%g ",px[i*d + j]);
-      printf("\n");
-    }
+  for (INTEGER i=0;i<d;++i) {
+    count = (INTEGER)fread(px + i*Ntest,sizeof(double),Ntest,fp);  // read a coord (all points)
+    if (count!=Ntest) fprintf(stderr,"error reading test coordinate i=%d!\n",i);
   }
   fclose(fp);
   ypred.Init(Ntest);
@@ -168,10 +164,8 @@ int main(int argc, char **argv) {
   //----------- Write out  predicted mean y values at test pts ......
   py = ypred.GetPointer();
   fp = fopen(FilePred, "wp");
-  for (INTEGER i=0;i<Ntest;++i) {
-    // if (i<2) printf("ypred[%d] = %g\n",i,py[i]);      // checked ok
-    fwrite(py + i,1,sizeof(double),fp);  // write a val
-  }
+  count = (INTEGER)fwrite(py,sizeof(double),Ntest,fp);  // write all vals
+  if (count!=Ntest) fprintf(stderr,"error writing pred y vals!\n");
   fclose(fp);
   
   //---------- Clean up --------------------      no free of Xtrain etc?

@@ -46,10 +46,10 @@ fileypred = sprintf('/tmp/RLCM_ypred_%x.tmp',tmpkey);
 %fileytrgmean = sprintf('/tmp/RLCM_ytrgmean_%x.tmp',tmpkey);
 
 fid = fopen(filetrain,'wb');
-fwrite(fid,[x; meas(:)'],'float64');  % stack x and ymeas and write out
-fclose(fid);
+fwrite(fid,[x', meas(:)],'float64');  % stack flipped x and ymeas and write out
+fclose(fid);                          % format is points-fast, dims-slow order
 fid = fopen(filextrg,'wb');
-fwrite(fid,xtrg,'float64');
+fwrite(fid,xtrg','float64');          % similar format
 fclose(fid);
 
 % [x(:,1); meas(1)]   % debug

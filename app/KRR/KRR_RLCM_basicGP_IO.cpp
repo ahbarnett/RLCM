@@ -56,6 +56,7 @@
 //                testing (just coords of points xtrg).
 //   FilePred:   Output file for pred means at test pts (raw doubles, binary)
 //   d:           Dimension of the data
+//   verb:        0 (silent) or 1 (diagnostic to stdout)
 // [three kernel params:]
 //   sigma:   param sigma (lengthscale of kernel, usually called \ell).
 //   var :  param k(0) prior variance
@@ -78,7 +79,7 @@
 int main(int argc, char **argv) {
 
   //---------- Parameters from command line --------------------
-  if (argc!=16) {
+  if (argc!=17) {
     printf("wrong number of cmd args!\n");
     exit(1);
   }
@@ -90,6 +91,7 @@ int main(int argc, char **argv) {
   char *FileTest = argv[idx++];                     // Testing data
   char *FilePred = argv[idx++];                     // pred output file
   INTEGER d = String2Integer(argv[idx++]);          // Data dimension
+  int verb = String2Integer(argv[idx++]);          // verbosity
   // kernel & nugget pars...
   double sigma = atof(argv[idx++]);                // ell
   double var0 = atof(argv[idx++]);                   // aka s, var k(0)
@@ -113,7 +115,7 @@ int main(int argc, char **argv) {
     Par = PCA;
   }
   else {
-    printf("KRR_RLCM. Error: Unknown partitioning method!\n");
+    fprintf(stderr,"KRR_RLCM. Error: Unknown partitioning method!\n");
     return 0;
   }
   double DiagCorrect = atof(argv[idx++]);           // DiagCorrect
@@ -171,7 +173,8 @@ int main(int argc, char **argv) {
 #else
   NumThreads = 1; // To avoid compiler warining of unused variable
 #endif
-  printf("\tStarting RLCM, NumThreads=%d ...\n",NumThreads);
+  if (verb)
+    printf("\tStarting RLCM, NumThreads=%d ...\n",NumThreads);
   //  *** problem, even when NumThreads=1, observe all threads used :(
   // Also, NumThreads = 16, say, causes terrible slow-down to a halt :(
 
@@ -193,8 +196,10 @@ int main(int argc, char **argv) {
                                 Refinement, Seed, Par);
   END_CLOCK;
   double TimePreTrain = ELAPSED_TIME;
-  printf("\tKRR_RLCM: pretrain time = %g, MemEst=%g\n", TimePreTrain, MemEst); fflush(stdout);
-
+  if (verb) {
+    printf("\tKRR_RLCM: pretrain time = %g, MemEst=%g\n", TimePreTrain, MemEst); fflush(stdout);
+  }
+    
   // set up the kernel: var0 = k(0) = the prior var. sigma = lengthscale
   KernelType mKernel(var0, sigma);
   
@@ -206,14 +211,16 @@ int main(int argc, char **argv) {
   END_CLOCK;
   double TimeTrain = ELAPSED_TIME;
   // we are bad since we should not really clobber stdout like this...
-  printf("\tKRR_RLCM.Train: (Ntrain=%d, dim=%d) param = %g %g, time = %g\n", Ntrain, d, sigma, lambda, TimeTrain);
+  if (verb)
+    printf("\tKRR_RLCM.Train: (Ntrain=%d, dim=%d) param = %g %g, time = %g\n", Ntrain, d, sigma, lambda, TimeTrain);
   
   // do predictions? (not "tests") I guess.  There's no doc for KRR_*.Test....
   START_CLOCK;
   mKRR_RLCM.Test(Xtrain, Xtest, ytrain, mKernel, ypred);
   END_CLOCK;
   double TimeTest = ELAPSED_TIME;
-  printf("\tKRR_RLCM.Test: (Ntest=%d) time = %g\n", Ntest, TimeTest);
+  if (verb)
+    printf("\tKRR_RLCM.Test: (Ntest=%d) time = %g\n", Ntest, TimeTest);
   
   //----------- Write out  predicted mean y values at test pts ......
   py = ypred.GetPointer();
@@ -224,6 +231,8 @@ int main(int argc, char **argv) {
     return 1;
   }
   fclose(fp);
+  if (verb)
+    printf("\tKRR_RLCM done writing output file.");
   
   //---------- Clean up --------------------      no free of Xtrain etc?
   Delete_1D_Array<INTEGER>(&Perm);

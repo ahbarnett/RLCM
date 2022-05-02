@@ -50,6 +50,7 @@
 //                testing (just coords of points xtrg).
 //   FilePred:   Output file for pred means at test pts (raw doubles, binary)
 //   d:           Dimension of the data
+//   verb:        verbosity (0 = silent, 1 = diagnostics to stdout).
 //   sigma:   param sigma (lengthscale of kernel, usually called \ell).
 //   var :  param k(0) prior variance
 //   lambba:  param lambda = nugget I think ?  Ie what GPs call sigma^2 ?
@@ -63,7 +64,7 @@
 int main(int argc, char **argv) {
 
   //---------- Parameters from command line --------------------
-  if (argc!=11) {
+  if (argc!=12) {
     printf("wrong number of cmd args!\n");
     exit(1);
   }
@@ -75,6 +76,7 @@ int main(int argc, char **argv) {
   char *FileTest = argv[idx++];                     // Testing data
   char *FilePred = argv[idx++];                     // pred output file
   INTEGER d = String2Integer(argv[idx++]);          // Data dimension
+  int verb = String2Integer(argv[idx++]);          // verbosity
   double sigma = atof(argv[idx++]);                // ell
   double var0 = atof(argv[idx++]);                   // aka s, var k(0)
   double lambda = atof(argv[idx++]);              // aka sigma^2 nugget
@@ -147,8 +149,8 @@ int main(int argc, char **argv) {
   double MemEst = mKRR_Standard.Train(Xtrain, mKernel, lambda);
   END_CLOCK;
   double TimeTrain = ELAPSED_TIME;
-  // we are bad since we should not really clobber stdout like this...
-  printf("\tKRR_Standard.Train: (Ntrain=%d, dim=%d) param = %g %g, time = %g, mem_per_pt = %g\n", Ntrain, d, sigma, lambda, TimeTrain, MemEst);
+  if (verb)
+    printf("\tKRR_Standard.Train: (Ntrain=%d, dim=%d) param = %g %g, time = %g, mem_per_pt = %g\n", Ntrain, d, sigma, lambda, TimeTrain, MemEst);
   
 
   // do predictions? I guess.  There's no doc for KRR_Standard.Test....
@@ -156,7 +158,8 @@ int main(int argc, char **argv) {
   mKRR_Standard.Test(Xtrain, Xtest, ytrain, mKernel, ypred);
   END_CLOCK;
   double TimeTest = ELAPSED_TIME;
-  printf("\tKRR_Standard.Test: (Ntest=%d) time = %g\n", Ntest, TimeTest);
+  if (verb)
+    printf("\tKRR_Standard.Test: (Ntest=%d) time = %g\n", Ntest, TimeTest);
 
   
   //----------- Write out  predicted mean y values at test pts ......
@@ -168,6 +171,8 @@ int main(int argc, char **argv) {
     return 1;
   }
   fclose(fp);
+  if (verb)
+    printf("\tKRR_Standard done writing output file.\n");
   
   //---------- Clean up --------------------      no free of Xtrain etc?
   return 0;

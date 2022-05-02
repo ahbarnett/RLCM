@@ -1,4 +1,7 @@
-DIRS = KRR KRR_binary GP
+
+# ahb hack to avoid the binary dir, not needed & cause errors...
+#DIRS = KRR KRR_binary GP
+DIRS = KRR GP
 
 all:
 	./generate_KRR_binary.sh

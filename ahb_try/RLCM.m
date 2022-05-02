@@ -106,6 +106,7 @@ freqdata = 3.0;   % how oscillatory underlying func? freq >> 0.3/l misspecified
 L=1; shift = 0;   % nodes in [0,1]^dim
 %L = 50.0; shift = 200;   % arbitary, tests correct centering and L-box rescale
 opts.dense = 0;   % 0 = RLCM; 1 = force KRR_Standard (not RLCM)
+opts.verb = 0;
 opts.rank = 125;  % 125 std = fast (1e4 pts/s), 1000 = slow (300 pts/s)
 
 for dim = 1:3   % ..........

@@ -71,7 +71,7 @@
 //   Refinement:  Refine the linear solves? Either 0 or 1.
 
 
-#include "KRR_Common.hpp"
+#include "./KRR_Common.hpp"
 
 #include <cstdio>
 

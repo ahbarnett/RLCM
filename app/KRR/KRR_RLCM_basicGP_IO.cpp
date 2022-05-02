@@ -232,7 +232,7 @@ int main(int argc, char **argv) {
   }
   fclose(fp);
   if (verb)
-    printf("\tKRR_RLCM done writing output file.");
+    printf("\tKRR_RLCM done writing output file.\n");
   
   //---------- Clean up --------------------      no free of Xtrain etc?
   Delete_1D_Array<INTEGER>(&Perm);

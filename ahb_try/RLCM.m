@@ -36,7 +36,7 @@ function [y, ytrg, info] = RLCM(x, meas, sigmasq, ker, xtrg, opts)
 if nargin==0, test_RLCM; return; end
 if nargin<5, xtrg = []; end
 if nargin<6, opts = []; end
-if ~isfield(opts,'verb'), opts.verb = 1; end
+if ~isfield(opts,'verb'), opts.verb = 0; end
 if ~isfield(opts,'seed'), opts.seed = 0; end     % defaults for RLCM pars
 if ~isfield(opts,'rank'), opts.rank = 125; end    % (see RLCM .cpp source)
 if ~isfield(opts,'par'), opts.par='RAND'; end
@@ -67,7 +67,7 @@ fclose(fid);
 nthread = 1; %maxNumCompThreads;   % 1 is best but still uses all threads
              % lots of threads cause terrible slow-down in executable :(
 h = fileparts(mfilename('fullpath'));   % this dir
-dir = [h '/RLCM/app/KRR'];     % app dir of ahb-hacked RLCM executables
+dir = [h '/../app/KRR'];     % app dir of ahb-hacked RLCM executables
 
 if isfield(opts,'dense') && opts.dense        % toy small-N dense test
   exechead = 'KRR_Standard_basicGP_IO';

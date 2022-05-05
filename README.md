@@ -2,7 +2,7 @@
 
 Jie Chen, MIT-IBM Watson AI Lab, IBM Research
 
-[Hacked fork version by Alex Barnett, with KRR_Standard and KRR_RLCM versions in app/KRR that read in files and write out the regressed mean vector at targets. Also Chen's code-generated KRR_binary directory is switched off.]
+[Hacked fork version by Alex Barnett, with MATLAB interface to KRR tasks, which is the same as GP regression. This is done by system-calling new KRR_Standard and KRR_RLCM versions in app/KRR that read in files and write out the regressed mean vector at targets. Also Chen's code-generated KRR_binary directory is switched off. For tests see RLCM.m in ahb_try/ ]
 
 RLCM is a library, written in C++, that offers the low-level linear algebra routines for a type of structured matrices [(Chen 2014a)](#Chen2014a), [(Chen 2014b)](#Chen2014b) resulting from hierarchical compressions of fully dense covariance/kernel matrices, as well as the high-level application routines for statistics and machine learning, including Gaussian processes [(Chen and Stein 2017)](#Chen2017b) and kernel methods [(Chen et al. 2017)](#Chen2017a).
 

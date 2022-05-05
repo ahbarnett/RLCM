@@ -1,3 +1,5 @@
+// This is a 3-kernel-param version of KRR_RLCM_basicGP_IO.cpp [ahb hack]
+
 // This program performs kernel ridge regression by using the RLCM
 // method. The actual machine learning task can be either regression,
 // binary classification, or multiclass classification.
@@ -15,11 +17,10 @@
 // RAND is much more efficient than PCA.
 //
 // The current implementation supports the following kernels:
-// isotropic Gaussian, isotropic Laplace, product Laplace, and inverse
-// multiquadric. For their definitions, see the corresponding .hpp
+// isotropic Matern, or any kernel with class constructor taking 3 params.
 // files under ${CMATRIX_DIR}/src/Kernels/. The required paramters are
-// sigma (bandwidth) and lambda (regularization). The global scaling s
-// is always 1.
+// nu (power), sigma (bandwidth = ell lengthscale) and lambda (regularization).
+// The global scaling s is always 1.
 //
 // The current implementation (ahb hack) supports DPoint, and a binary
 // disk format. ahb hacked so NumClasses = 1 = regression.
@@ -29,10 +30,9 @@
 // routines are threaded. Additionally, one may set the USE_OPENMP
 // flag so that other parts are threaded.
 //
-// Compile-time macros: (*** ahb not updated)
+// Compile-time macros:
 //
-//   KernelType:       One of IsotropicGaussian, IsotropicLaplace,
-//                     ProductLaplace, InvMultiquadric
+//   KernelType:       Any 3-param kernel, eg IsotropicMatern
 //   PointFormat:      One of DPoint, SPoint
 //   PointArrayFormat: One of DPointArray, SPointArray. Must be
 //                     consistent with PointFormat
@@ -41,7 +41,7 @@
 //
 // Usage:
 //
-//   KRR_RLCM_basicGP_IO_<kerneltype>_<pointtype>.ex NumThreads Ntrain FileTrain Ntest FileTest FilePred d verb sigma var lambda seed rank par diagcorrent refinement
+//   KRR_RLCM_basicGP_IO_ker3pars_<kerneltype>_<pointtype>.ex NumThreads Ntrain FileTrain Ntest FileTest FilePred d verb nu sigma var lambda seed rank par diagcorrent refinement
 //
 //      note (ahb): only does GP regression, single set of kernel params
 //
@@ -57,11 +57,11 @@
 //   FilePred:   Output file for pred means at test pts (raw doubles, binary)
 //   d:           Dimension of the data
 //   verb:        0 (silent) or 1 (diagnostic to stdout)
-// [three kernel params:]
+// [three kernel params + one nugget param:]
+//   nu:      power for Matern
 //   sigma:   param sigma (lengthscale of kernel, usually called \ell).
 //   var :  param k(0) prior variance
 //   lambba:  param lambda = nugget I think ?  Ie what GPs call sigma^2 ?
-//               inferred by reading test/Test_IsotropicGaussian.cpp
 // [five RLCM method params:]
 //   Seed:        If >= 0, will use this value as the seed for RNG;
 //                otherwise, use the current time to seed the RNG.
@@ -79,7 +79,7 @@
 int main(int argc, char **argv) {
 
   //---------- Parameters from command line --------------------
-  if (argc!=17) {
+  if (argc!=18) {
     printf("wrong number of cmd args!\n");
     exit(1);
   }
@@ -93,6 +93,7 @@ int main(int argc, char **argv) {
   INTEGER d = String2Integer(argv[idx++]);          // Data dimension
   int verb = String2Integer(argv[idx++]);          // verbosity
   // kernel & nugget pars...
+  double nu = atof(argv[idx++]);                   // nu
   double sigma = atof(argv[idx++]);                // ell
   double var0 = atof(argv[idx++]);                   // aka s, var k(0)
   double lambda = atof(argv[idx++]);              // aka sigma^2 nugget
@@ -174,7 +175,7 @@ int main(int argc, char **argv) {
   NumThreads = 1; // To avoid compiler warining of unused variable
 #endif
   if (verb)
-    printf("\tStarting RLCM, 2 ker pars version. NumThreads=%d ...\n",NumThreads);
+    printf("\tStarting RLCM ker3pars version, NumThreads=%d ...\n",NumThreads);
   //  *** problem, even when NumThreads=1, observe all threads used :(
   // Also, NumThreads = 16, say, causes terrible slow-down to a halt :(
 
@@ -202,9 +203,7 @@ int main(int argc, char **argv) {
   }
     
   // set up the kernel: var0 = k(0) = the prior var. sigma = lengthscale
-  KernelType mKernel(var0, sigma);  // SE
-  // Note this would work for any kernel type that expects 2 args for creator;
-  // not for Matern.
+  KernelType mKernel(var0, nu, sigma);  // Matern only, really
   
   // Training
   // Note that the kernel k(x,y) when x==y gives var0+lambda (adds "nugget")
@@ -215,7 +214,7 @@ int main(int argc, char **argv) {
   double TimeTrain = ELAPSED_TIME;
   // we are bad since we should not really clobber stdout like this...
   if (verb)
-    printf("\tKRR_RLCM.Train: (Ntrain=%d, dim=%d) param = %g %g, time = %g\n", Ntrain, d, sigma, lambda, TimeTrain);
+    printf("\tKRR_RLCM.Train: (Ntrain=%d, dim=%d), ker params = %g %g %g, time = %g\n", Ntrain, d, nu, sigma, lambda, TimeTrain);
   
   // do predictions? (not "tests") I guess.  There's no doc for KRR_*.Test....
   START_CLOCK;

@@ -22,7 +22,9 @@ function [y, ytrg, info] = RLCM(x, meas, sigmasq, ker, xtrg, opts)
 %         rank - RLCM matrix block rank param (see paper)
 %         par = 'RAND' or 'PCA' (string), partitioning method.
 %         diageps - diagonal added value for CMatrix construction, eg 1e-8 ?
-%         refine = refine the linear solves? (0 or 1).
+%         refine - refine the linear solves? (0 or 1).
+%         only_trgs - only compute posterior mean at targets
+%         nthreads - how many threads for RLCM executables (default all avail)
 %
 % Outputs:
 %  y - struct with fields of regression results corresp to given data points x:
@@ -50,7 +52,8 @@ if ~isfield(opts,'refine'), opts.refine=1; end
 if numel(meas)~=N, error('sizes of meas and x must match!'); end
 n = size(xtrg,2);   % # new targets
 
-xtrg = [x, xtrg];          % add training pts to targ, for now... hack
+if ~isfield(opts, 'only_trgs'), xtrg = [x, xtrg]; end
+ntrgs = size(xtrg, 2);
 
 tmpkey = 1; %randi([0 intmax('uint32')], 'uint32');
 filetrain = sprintf('/tmp/RLCM_train_%x.tmp',tmpkey);
@@ -67,10 +70,12 @@ fclose(fid);
 
 % [x(:,1); meas(1)]   % debug
 
-nthread = 1; %maxNumCompThreads;   % 1 is best but still uses all threads
-             % lots of threads cause terrible slow-down in executable :(
 h = fileparts(mfilename('fullpath'));   % this dir
 dir = [h '/../app/KRR'];     % app dir of ahb-hacked RLCM executables
+
+if isfield(opts,'nthread')
+  dir = sprintf('OMP_NUM_THREADS=%d %s',opts.nthread,dir);  % for system call
+end
 
 if opts.dense              % toy small-N dense test
   exechead = 'KRR_Standard_basicGP_IO';
@@ -80,13 +85,18 @@ else                       % the real thing: RLCM fast alg for large N
   methargs = sprintf('%d %d %s %g %d', opts.seed, opts.rank,opts.par, opts.diageps, opts.refine);
 end
 
+% note the following only changes the command args which seems not to affect
+% actual # threads (hence the above hack on dir to control via OMP_NUM_THREADS)
+nthread = 1; %maxNumCompThreads;   % 1 is best but still uses all threads
+             % lots of threads cause terrible slow-down in executable :(
+
 if strcmp(ker.fam,'squared-exponential')  % 2 pars: var, ell (also sigma^2 nugg)
-  cmd = sprintf('%s/%s_IsotropicGaussian_DPoint.ex %d %d %s %d %s %s %d %d %.15g %.15g %.15g %s',dir,exechead,nthread,N,filetrain,N+n,filextrg,fileypred,dim,opts.verb,ker.l,ker.k(0),sigmasq,methargs);
+  cmd = sprintf('%s/%s_IsotropicGaussian_DPoint.ex %d %d %s %d %s %s %d %d %.15g %.15g %.15g %s',dir,exechead,nthread,N,filetrain,ntrgs,filextrg,fileypred,dim,opts.verb,ker.l,ker.k(0),sigmasq,methargs);
   % cmd arg ordering must match RLCM/app/KRR/KRR_RLCM_basicGP_IO.cpp
 elseif strcmp(ker.fam(1:6),'matern')      % 3 pars: var, nu, ell; also sigma^2
   if opts.dense, error('KRR_Standard (dense) not implemented for Matern!'); end
   % notice since Matern has 1 extra param, need different executable than SE:
-  cmd = sprintf('%s/%s_IsotropicMatern_DPoint.ex %d %d %s %d %s %s %d %d %.15g %.15g %.15g %.15g %s',dir,exechead,nthread,N,filetrain,N+n,filextrg,fileypred,dim,opts.verb,ker.nu,ker.l,ker.k(0),sigmasq,methargs);
+  cmd = sprintf('%s/%s_IsotropicMatern_DPoint.ex %d %d %s %d %s %s %d %d %.15g %.15g %.15g %.15g %s',dir,exechead,nthread,N,filetrain,ntrgs,filextrg,fileypred,dim,opts.verb,ker.nu,ker.l,ker.k(0),sigmasq,methargs);
   % cmd arg ordering must match RLCM/app/KRR/KRR_RLCM_basicGP_IO_ker3pars.cpp
 end
 if opts.verb, cmd, end          % report
@@ -96,12 +106,17 @@ if status~=0, error('executable had error exit code, stopping!'); end
 info.cpu_time.total = toc(t0);
 
 fid = fopen(fileypred,'rb');
-[ypred count] = fread(fid,N+n,'float64');
+[ypred count] = fread(fid,ntrgs,'float64');
 fclose(fid);
-if count~=N+n, error('cannot read correct number ypred vals!'); end
+if count~=ntrgs, error('cannot read correct number ypred vals!'); end
 
-y.mean = ypred(1:N);         % unpack
-ytrg.mean = ypred(N+1:end);
+if isfield(opts, 'only_trgs')
+    y.mean = [];
+    ytrg.mean = ypred; 
+else
+    y.mean = ypred(1:N);   % hack for now to split out posterior means into two types
+    ytrg.mean = ypred(N+1:end);
+end
 if opts.verb, disp('RLCM done'); end
 
 

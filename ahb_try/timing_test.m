@@ -21,10 +21,12 @@ ker = SE_ker(dim,l);
 opts.nthread = 4;      % little effect on speed  (slows for eg >8 threads)
 opts.diageps = 1e-10;   % ? eg claims 1e-8
 opts.refine = 1;       % v little effect on speed
-opts.verb = 0;   % 0 silent; 1 show RLCM system calls & timing breakdown
+opts.verb = 1;   % 0 silent; 1 show RLCM system calls & timing breakdown
                  % (75% of time is KRR_RLCM.Test)
+%opts.par = 'PCA';
 
-ranks = [100 200 300];    % convergence test
+ranks = 100:100:300;    % convergence test
+%ranks = [300 400];    % convergence test
 for i=1:numel(ranks)      % .....
   opts.rank = ranks(i);
   fprintf('\nRLCM dim=%d, N=%d, sigma=%.3g, rank=%d, refine=%d...\n',dim,N,sigma,opts.rank,opts.refine)
